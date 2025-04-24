@@ -1,52 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-//import 'package:shared_preferences/shared_preferences.dart';
 
-class AuthPage extends StatefulWidget {
-  const AuthPage({super.key});
+class RegPage extends StatefulWidget {
+  const RegPage({super.key});
 
   @override
-  State<AuthPage> createState() => _AuthPageState();
+  State<RegPage> createState() => _RegPageState();
 }
 
-class _AuthPageState extends State<AuthPage> {
+class _RegPageState extends State<RegPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _supabase = Supabase.instance.client;
 
+  Future<void> _register() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final confirmPassword = _confirmPasswordController.text.trim();
 
-Future<void> _login() async {
-  final email = _emailController.text.trim();
-  final password = _passwordController.text.trim();
-
-  if (email.isEmpty || password.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Пожалуйста, заполните все поля')),
-    );
-    return;
-  }
-
-  try {
-    final response = await _supabase
-        .from('User')
-        .select()
-        .eq('Email_User', email)
-        .eq('Password_User', password)
-        .single();
-
-    if (response != null) {
-      Navigator.pushReplacementNamed(context, '/main');
-    } else {
+    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Неверный email или пароль')),
+        SnackBar(content: Text('Пожалуйста, заполните все поля')),
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Пароли не совпадают')),
+      );
+      return;
+    }
+
+    try {
+      final existingUser = await _supabase
+          .from('User')
+          .select()
+          .eq('Email_User', email)
+          .maybeSingle();
+
+      if (existingUser != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Пользователь с таким email уже существует')),
+        );
+        return;
+      }
+
+      await _supabase.from('User').insert({
+        'Email_User': email,
+        'Password_User': password,
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Регистрация успешна!')),
+      );
+
+      Navigator.popAndPushNamed(context, '/');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка при регистрации: $e')),
       );
     }
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Ошибка при входе: $e')),
-    );
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +73,7 @@ Future<void> _login() async {
           children: [
             Image.asset('images/logo.png'),
             Text(
-              "Вход",
+              "Регистрация",
               textScaler: TextScaler.linear(3),
               style: TextStyle(color: Colors.white),
             ),
@@ -67,10 +83,8 @@ Future<void> _login() async {
                 children: [
                   TextField(
                     controller: _emailController,
-                    style: TextStyle(color: Colors.white),
                     cursorColor: Colors.white,
                     decoration: InputDecoration(
-                      prefixIcon: Icon(Icons.email, color: Colors.white),
                       labelText: 'Email',
                       labelStyle: TextStyle(color: Colors.white),
                       focusedBorder: OutlineInputBorder(
@@ -105,20 +119,29 @@ Future<void> _login() async {
                       ),
                     ),
                   ),
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.02,
+                  ),
+                  TextField(
+                    controller: _confirmPasswordController,
+                    obscureText: true,
+                    style: TextStyle(color: Colors.white),
+                    cursorColor: Colors.white,
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(Icons.password, color: Colors.white),
+                      labelText: 'Подтвердите пароль',
+                      labelStyle: TextStyle(color: Colors.white),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                    ),
+                  ),
                 ],
-              ),
-            ),
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.02,
-            ),
-            Container(
-              width: MediaQuery.of(context).size.width * 0.8,
-              alignment: Alignment.centerRight,
-              child: InkWell(
-                child: Text("Забыли пароль?"),
-                onTap: () {
-                  Navigator.popAndPushNamed(context, '/recovery');
-                },
               ),
             ),
             SizedBox(
@@ -127,8 +150,8 @@ Future<void> _login() async {
             SizedBox(
               width: MediaQuery.of(context).size.width * 0.5,
               child: ElevatedButton(
-                onPressed: _login,
-                child: Text("Войти"),
+                onPressed: _register,
+                child: Text("Создать аккаунт"),
               ),
             ),
             SizedBox(
@@ -138,9 +161,9 @@ Future<void> _login() async {
               width: MediaQuery.of(context).size.width * 0.5,
               child: OutlinedButton(
                 onPressed: () {
-                  Navigator.popAndPushNamed(context, '/reg');
+                  Navigator.popAndPushNamed(context, '/');
                 },
-                child: Text("Зарегистрироваться"),
+                child: Text("Войти"),
               ),
             ),
           ],
