@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:music_player/tracks_page.dart';
+import 'package:music_player/player_state.dart';
+import 'package:music_player/player_page.dart';
+import 'package:music_player/artist_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -8,12 +14,79 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
+  final _supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> _playlists = [];
+  List<Map<String, dynamic>> _albums = [];
+  List<Map<String, dynamic>> _artists = [];
+  bool _isLoading = true;
+
+  final List<Map<String, dynamic>> _defaultPlaylists = [
+    {'name': 'Избранное', 'image': null},
+    {'name': 'Плейлист 1', 'image': null},
+    {'name': 'Плейлист 2', 'image': null},
+    {'name': 'Плейлист 3', 'image': null},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  Future<void> _fetchData() async {
+    try {
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('Пользователь не аутентифицирован');
+      }
+
+      final playlistsResponse = await _supabase
+          .from('list')
+          .select()
+          .eq('user_id', userId);
+
+      final albumsResponse = await _supabase
+          .from('album')
+          .select();
+
+      final artistsResponse = await _supabase
+          .from('author')
+          .select();
+
+      setState(() {
+        _playlists = playlistsResponse;
+        _albums = albumsResponse;
+        _artists = artistsResponse;
+        _isLoading = false;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка загрузки данных: ${e.toString()}')),
+      );
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final playerState = Provider.of<PlayerState>(context);
+    final displayPlaylists = _playlists.isNotEmpty ? _playlists : _defaultPlaylists;
+
     return Scaffold(
+      backgroundColor: Colors.blueGrey[900],
       appBar: AppBar(
-        backgroundColor: Colors.blueGrey[600],
-        title: Text('Главная'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          'Главная',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: [
           IconButton(
             onPressed: () {
@@ -23,180 +96,320 @@ class _MainPageState extends State<MainPage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.8,
-                child: TextField(
-                  style: TextStyle(color: Colors.blueGrey[600]),
-                  cursorColor: Colors.white,
-                  decoration: InputDecoration(
-                    filled: true,
-                    prefixIcon: Icon(Icons.search, color: Colors.blueGrey[600]),
-                    labelText: 'Поиск',
-                    labelStyle: TextStyle(color: Colors.blueGrey[600]),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6),
-                      borderSide: BorderSide(color: Colors.white),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(color: Colors.blueGrey[300]))
+          : SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "Плейлисты",
-                    style: TextStyle(fontSize: 32),
-                  ),
-                  SizedBox(height: 16),
-                  SizedBox(
-                    height: 150,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: 6,
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 16),
-                          child: Container(
-                            width: 150,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              color: Colors.blueGrey[200],
-                            ),
-                            child: Center(child: Text("Плейлист ${index + 1}")),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Популярные исполнители",
-                    style: TextStyle(fontSize: 32),
-                  ),
-                  SizedBox(height: 16),
-                  SizedBox(
-                    height: 100,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: 6,
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 16),
-                          child: CircleAvatar(
-                            radius: 40,
-                            backgroundColor: Colors.blueGrey[200],
-                            child: Text("${index + 1}"),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Альбомы",
-                    style: TextStyle(fontSize: 32),
-                  ),
-                  SizedBox(height: 16),
-                  SizedBox(
-                    height: 150,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: 6,
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 16),
-                          child: Container(
-                            width: 150,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              color: Colors.blueGrey[200],
-                            ),
-                            child: Center(child: Text("Альбом ${index + 1}")),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            Container(
-              color: Colors.blueGrey[600],
-              padding: EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(Icons.music_note, color: Colors.white, size: 40),
-                  SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Название трека",
-                        style: TextStyle(color: Colors.white, fontSize: 18),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Text(
+                      'Ваши плейлисты',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
                       ),
-                      Text(
-                        "Исполнитель",
-                        style: TextStyle(color: Colors.white, fontSize: 14),
-                      ),
-                    ],
+                    ),
                   ),
-                  Spacer(),
-                  IconButton(
-                    onPressed: () {},
-                    icon: Icon(Icons.play_arrow, color: Colors.white, size: 40),
+                  SizedBox(
+                    height: 180,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: displayPlaylists.length,
+                      itemBuilder: (context, index) {
+                        final playlist = displayPlaylists[index];
+                        return Container(
+                          width: 150,
+                          margin: EdgeInsets.only(right: 16),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.blueGrey[800],
+                          ),
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                                  child: playlist['image'] != null
+                                      ? Image.network(
+                                          playlist['image'],
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Container(
+                                          color: Colors.blueGrey[600],
+                                          child: Center(
+                                            child: Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(Icons.music_note, size: 50, color: Colors.blueGrey[300]),
+                                                SizedBox(height: 8),
+                                                
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  playlist['name'] ?? 'Без названия',
+                                  style: TextStyle(color: Colors.white),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                    child: Text(
+                      'Популярные исполнители',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 120,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _artists.length,
+                      itemBuilder: (context, index) {
+                        final artist = _artists[index];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/artist',
+                              arguments: {
+                                'artistId': artist['id'],
+                                'artistName': artist['name'],
+                                'artistImage': artist['image'],
+                              },
+                            );
+                          },
+                          child: Container(
+                            width: 80,
+                            margin: EdgeInsets.only(right: 16),
+                            child: Column(
+                              children: [
+                                CircleAvatar(
+                                  radius: 30,
+                                  backgroundColor: Colors.blueGrey[800],
+                                  backgroundImage: artist['image'] != null
+                                      ? NetworkImage(artist['image'])
+                                      : null,
+                                  child: artist['image'] == null
+                                      ? Icon(Icons.person, size: 30, color: Colors.blueGrey[300])
+                                      : null,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  artist['name'],
+                                  style: TextStyle(color: Colors.white, fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+                    child: Text(
+                      'Альбомы',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 180,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _albums.length,
+                      itemBuilder: (context, index) {
+                        final album = _albums[index];
+                        return Container(
+                          width: 150,
+                          margin: EdgeInsets.only(right: 16),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.blueGrey[800],
+                          ),
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                                  child: album['image'] != null
+                                      ? Image.network(
+                                          album['image'],
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Container(
+                                          color: Colors.blueGrey[600],
+                                          child: Center(
+                                            child: Icon(Icons.album, size: 50, color: Colors.blueGrey[300]),
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      album['name'] ?? 'Без названия',
+                                      style: TextStyle(color: Colors.white),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    if (album['game'] != null && album['game']['name'] != null)
+                                      Text(
+                                        album['game']['name'],
+                                        style: TextStyle(color: Colors.blueGrey[300], fontSize: 12),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => TracksPage()),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueGrey[700],
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: Text(
+                          'Все треки',
+                          style: TextStyle(fontSize: 18, color: Colors.white),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
+      bottomNavigationBar: InkWell(
+        onTap: () {
+          if (playerState.currentTrackUrl != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => PlayerPage()),
+            );
+          }
+        },
+        child: _buildPlayerBar(playerState),
       ),
-      bottomNavigationBar: BottomAppBar(
-        color: Colors.blueGrey[600],
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.arrow_back, color: Colors.white, size: 40),
+    );
+  }
+
+  Widget _buildPlayerBar(PlayerState playerState) {
+    return Container(
+      height: 80,
+      decoration: BoxDecoration(
+        color: Colors.blueGrey[800]!,
+        border: Border(top: BorderSide(
+          color: Colors.blueGrey[600]!,
+          width: 1,
+        )),
+      ),
+      child: Row(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: playerState.currentTrackImage != null
+                  ? Image.network(
+                      playerState.currentTrackImage!,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                    )
+                  : Container(
+                      width: 56,
+                      height: 56,
+                      color: Colors.blueGrey[600],
+                      child: Icon(Icons.music_note, color: Colors.white),
+                    ),
             ),
-            SizedBox(width: MediaQuery.of(context).size.width * 0.2),
-            IconButton(
-              onPressed: () {},
-              icon: Icon(Icons.arrow_forward, color: Colors.white, size: 40),
+          ),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  playerState.currentTrackName ?? 'Название трека',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  playerState.currentTrackAuthor ?? 'Исполнитель',
+                  style: TextStyle(color: Colors.blueGrey[300], fontSize: 14),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          IconButton(
+            onPressed: () {
+              if (playerState.currentTrackUrl != null) {
+                if (playerState.isPlaying) {
+                  playerState.pause();
+                } else {
+                  playerState.resume();
+                }
+              }
+            },
+            icon: Icon(
+              playerState.isPlaying ? Icons.pause : Icons.play_arrow,
+              color: Colors.white,
+              size: 36,
+            ),
+          ),
+        ],
       ),
     );
   }

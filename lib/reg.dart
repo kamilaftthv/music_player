@@ -12,14 +12,16 @@ class _RegPageState extends State<RegPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _nameController = TextEditingController();
   final _supabase = Supabase.instance.client;
 
   Future<void> _register() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final confirmPassword = _confirmPasswordController.text.trim();
+    final name = _nameController.text.trim();
 
-    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty || name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Пожалуйста, заполните все поля')),
       );
@@ -34,23 +36,18 @@ class _RegPageState extends State<RegPage> {
     }
 
     try {
-      final existingUser = await _supabase
-          .from('User')
-          .select()
-          .eq('Email_User', email)
-          .maybeSingle();
+      // Используем встроенную аутентификацию Supabase
+      final AuthResponse response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'name': name,
+        },
+      );
 
-      if (existingUser != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Пользователь с таким email уже существует')),
-        );
-        return;
+      if (response.user == null) {
+        throw Exception('Пользователь не создан');
       }
-
-      await _supabase.from('User').insert({
-        'Email_User': email,
-        'Password_User': password,
-      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Регистрация успешна!')),
@@ -59,7 +56,7 @@ class _RegPageState extends State<RegPage> {
       Navigator.popAndPushNamed(context, '/');
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка при регистрации: $e')),
+        SnackBar(content: Text('Ошибка при регистрации: ${e.toString()}')),
       );
     }
   }
@@ -82,6 +79,23 @@ class _RegPageState extends State<RegPage> {
               child: Column(
                 children: [
                   TextField(
+                    controller: _nameController,
+                    cursorColor: Colors.white,
+                    decoration: InputDecoration(
+                      labelText: 'Имя',
+                      labelStyle: TextStyle(color: Colors.white),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(6),
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+                  TextField(
                     controller: _emailController,
                     cursorColor: Colors.white,
                     decoration: InputDecoration(
@@ -97,9 +111,7 @@ class _RegPageState extends State<RegPage> {
                       ),
                     ),
                   ),
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.02,
-                  ),
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.02),
                   TextField(
                     controller: _passwordController,
                     obscureText: true,
@@ -119,9 +131,7 @@ class _RegPageState extends State<RegPage> {
                       ),
                     ),
                   ),
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.02,
-                  ),
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.02),
                   TextField(
                     controller: _confirmPasswordController,
                     obscureText: true,
@@ -144,9 +154,7 @@ class _RegPageState extends State<RegPage> {
                 ],
               ),
             ),
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.02,
-            ),
+            SizedBox(height: MediaQuery.of(context).size.height * 0.02),
             SizedBox(
               width: MediaQuery.of(context).size.width * 0.5,
               child: ElevatedButton(
@@ -154,9 +162,7 @@ class _RegPageState extends State<RegPage> {
                 child: Text("Создать аккаунт"),
               ),
             ),
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.02,
-            ),
+            SizedBox(height: MediaQuery.of(context).size.height * 0.02),
             SizedBox(
               width: MediaQuery.of(context).size.width * 0.5,
               child: OutlinedButton(
